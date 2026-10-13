@@ -42,9 +42,11 @@ services:
       DB_PASS: ${DB_PASS:-fullbright}
       SESSION_DRIVER: database
       AUTO_IMPORT_SCHEMA: "true"
-      # Set these once a real mail server is configured:
-      SHOW_CREDENTIALS_ONSCREEN: ${SHOW_CREDENTIALS_ONSCREEN:-false}
-      SHOW_VERIFICATION_LINK_ONSCREEN: ${SHOW_VERIFICATION_LINK_ONSCREEN:-false}
+      # No SMTP in the local stack, so keep the on-screen fallbacks ON so the
+      # enrollment/verification flow works out of the box. Set these to false
+      # once a real mail server (SMTP_* below) is configured.
+      SHOW_CREDENTIALS_ONSCREEN: ${SHOW_CREDENTIALS_ONSCREEN:-true}
+      SHOW_VERIFICATION_LINK_ONSCREEN: ${SHOW_VERIFICATION_LINK_ONSCREEN:-true}
       # Optional SMTP delivery (otherwise falls back to PHP mail()):
       # SMTP_HOST: smtp.example.com
       # SMTP_PORT: "587"
