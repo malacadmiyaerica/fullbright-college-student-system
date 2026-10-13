@@ -1,0 +1,32 @@
+# Uploaded student documents
+uploads/*
+!uploads/index.html
+
+# Generated Digital ID card images (contain personal data)
+digital_id/*.png
+
+# Environment / secrets
+.env
+.env.*
+*.env
+
+# Dependencies & caches
+node_modules/
+vendor/
+cache/
+.cache/
+*.log
+
+# OS cruft
+.DS_Store
+Thumbs.db
+
+# Editor cruft
+.vscode/
+.idea/
+
+# Old prototypes / build artifacts (not part of the app)
+prototype/
+prototype 2/
+enrollment-prototype.zip
+f.html
