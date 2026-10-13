@@ -10,21 +10,21 @@
 
 require_once __DIR__ . '/config.php';
 
-define('MAIL_FROM', 'noreply@fullbrightcollege.example');
-define('MAIL_FROM_NAME', 'Fullbright College Student Portal');
-
 /**
- * Sends an HTML email to a student using PHP mail().
- * Returns PHP mail()'s result (true on accepted-for-delivery).
+ * Sends an HTML email to a student.
+ *
+ * Delivery is attempted over SMTP when SMTP_HOST is configured (recommended
+ * for production / containers, which have no mail transfer agent), and falls
+ * back to PHP mail() for local XAMPP setups. Returns true on accepted delivery.
+ *
+ * SMTP environment variables:
+ *   SMTP_HOST        e.g. smtp.gmail.com
+ *   SMTP_PORT        default 587 (tls) or 465 (ssl)
+ *   SMTP_USER        username (also used as the From address)
+ *   SMTP_PASS        password / app password
+ *   SMTP_ENCRYPTION  tls | ssl | none   (default: tls, or ssl when port 465)
  */
 function send_student_email(string $to, string $toName, string $subject, string $htmlBody): bool {
-    $headers = [
-        'MIME-Version' => '1.0',
-        'Content-Type' => 'text/html; charset=UTF-8',
-        'From'         => MAIL_FROM_NAME . ' <' . MAIL_FROM . '>',
-        'X-Mailer'     => 'Fullbright SMS',
-    ];
-
     $body = "<!DOCTYPE html><html><body style=\"margin:0;padding:0;background:#f4f6fb;font-family:Segoe UI,Arial,sans-serif;\">"
           . "<div style=\"max-width:560px;margin:0 auto;padding:24px 18px;\">"
           . "<table role=\"presentation\" width=\"100%\" style=\"background:#ffffff;border-radius:14px;overflow:hidden;border:1px solid #dfe4ee;\">"
@@ -40,7 +40,108 @@ function send_student_email(string $to, string $toName, string $subject, string 
           . "If you did not request this, please contact the Registrar's Office immediately.</td></tr>"
           . "</table></div></body></html>";
 
+    if (env('SMTP_HOST') !== null) {
+        return smtp_send($to, $toName, $subject, $body);
+    }
+
+    $headers = [
+        'MIME-Version' => '1.0',
+        'Content-Type' => 'text/html; charset=UTF-8',
+        'From'         => MAIL_FROM_NAME . ' <' . MAIL_FROM . '>',
+        'X-Mailer'     => 'Fullbright SMS',
+    ];
     return @mail($to, $subject, $body, implode("\r\n", $headers));
+}
+
+/**
+ * Minimal, dependency-free SMTP client (AUTH LOGIN, STARTTLS/SSL).
+ * Returns true when the message is accepted by the server.
+ */
+function smtp_send(string $to, string $toName, string $subject, string $body): bool {
+    $host = (string) env('SMTP_HOST');
+    $port = (int) env('SMTP_PORT', '0');
+    $enc  = strtolower((string) env('SMTP_ENCRYPTION', ''));
+
+    if ($port <= 0) {
+        $port = 465; // implicit TLS
+    }
+    if ($enc === '') {
+        $enc = $port === 465 ? 'ssl' : 'tls';
+    }
+
+    $user = (string) env('SMTP_USER', '');
+    $pass = (string) env('SMTP_PASS', '');
+    $from = $user !== '' ? $user : MAIL_FROM;
+
+    $remote = ($enc === 'ssl' ? 'ssl://' : '') . $host . ':' . $port;
+    $ctx = stream_context_create(['ssl' => ['verify_peer' => true, 'verify_peer_name' => true]]);
+    $fp  = @stream_socket_client($remote, $errno, $errstr, 20, STREAM_CLIENT_CONNECT, $ctx);
+    if (!$fp) {
+        return false;
+    }
+    stream_set_timeout($fp, 20);
+
+    $read = function () use ($fp): string {
+        $data = '';
+        while (($line = fgets($fp, 1024)) !== false) {
+            $data .= $line;
+            if (strlen($line) < 4 || $line[3] !== '-') {
+                break; // last line of a multi-line reply
+            }
+        }
+        return $data;
+    };
+    $send = function (string $cmd) use ($fp): void {
+        fwrite($fp, $cmd . "\r\n");
+    };
+    $ok = function (string $reply) : bool {
+        return $reply !== '' && (int) substr($reply, 0, 3) < 400;
+    };
+
+    if (!$ok($read())) { fclose($fp); return false; } // server greeting
+
+    $hostname = parse_url(public_base_url(), PHP_URL_HOST) ?: 'localhost';
+    $send("EHLO {$hostname}");
+    $read();
+
+    if ($enc === 'tls') {
+        $send('STARTTLS');
+        if (!$ok($read())) { fclose($fp); return false; }
+        if (!@stream_socket_enable_crypto($fp, true, STREAM_CRYPTO_METHOD_TLS_CLIENT)) {
+            fclose($fp);
+            return false;
+        }
+        $send("EHLO {$hostname}");
+        $read();
+    }
+
+    if ($user !== '') {
+        $send('AUTH LOGIN');
+        $read();
+        $send(base64_encode($user)); $read();
+        $send(base64_encode($pass));
+        if (!$ok($read())) { fclose($fp); return false; }
+    }
+
+    $send('MAIL FROM:<' . $from . '>');    if (!$ok($read())) { fclose($fp); return false; }
+    $send('RCPT TO:<' . $to . '>');        if (!$ok($read())) { fclose($fp); return false; }
+    $send('DATA');                         if (!$ok($read())) { fclose($fp); return false; }
+
+    $headers = 'From: ' . MAIL_FROM_NAME . ' <' . $from . '>' . "\r\n"
+             . 'To: ' . ($toName !== '' ? $toName . ' <' . $to . '>' : $to) . "\r\n"
+             . 'Subject: ' . $subject . "\r\n"
+             . "MIME-Version: 1.0\r\n"
+             . "Content-Type: text/html; charset=UTF-8\r\n"
+             . 'Date: ' . date('r') . "\r\n";
+
+    // Dot-stuff any line beginning with a period, then terminate with a lone dot.
+    $data = preg_replace('/^\./m', '..', $body);
+    fwrite($fp, $headers . "\r\n" . $data . "\r\n.\r\n");
+    $accepted = $ok($read());
+
+    $send('QUIT');
+    fclose($fp);
+    return $accepted;
 }
 
 /**

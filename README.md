@@ -161,6 +161,29 @@ recovery.
 
 ---
 
+## Deployment
+
+The app ships with a `Dockerfile` and deploys to any container host with a
+managed MySQL database (Railway, Render, Fly.io, or a VPS). Configuration is
+read from environment variables, so no credentials live in the code.
+
+> **Not supported on Vercel.** Vercel does not run PHP and provides no MySQL,
+> persistent filesystem, or shared sessions — all of which this app uses.
+
+Quick start (Docker Compose, self-hosted):
+
+```bash
+cp .env.example .env      # then edit it
+docker compose up -d --build
+# open http://localhost:8080
+```
+
+Full instructions (Railway, Render, Fly.io, VPS), the environment-variable
+reference, and a post-deploy verification checklist live in
+[`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
+
+---
+
 ## Contributing
 
 1. Fork / clone the repository, then create a feature branch:

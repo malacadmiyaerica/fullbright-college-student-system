@@ -111,3 +111,15 @@ CREATE TABLE IF NOT EXISTS exams (
   created_at TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (code)
 ) ENGINE=InnoDB;
+
+-- ------------------------------------------------------------
+-- Sessions (only used when SESSION_DRIVER=database in containers).
+-- Keeps logins/verification state across instances & redeploys.
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS sessions (
+  id          VARCHAR(128) NOT NULL,
+  data        MEDIUMTEXT   NOT NULL,
+  last_access INT UNSIGNED NOT NULL,
+  PRIMARY KEY (id),
+  KEY idx_sessions_access (last_access)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

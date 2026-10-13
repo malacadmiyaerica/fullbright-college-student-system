@@ -9,6 +9,7 @@ digital_id/*.png
 .env
 .env.*
 *.env
+!.env.example
 
 # Dependencies & caches
 node_modules/
@@ -16,6 +17,10 @@ vendor/
 cache/
 .cache/
 *.log
+
+# Docker / local deploy overrides
+docker-compose.override.yml
+.vercel
 
 # OS cruft
 .DS_Store

@@ -2,12 +2,95 @@
 /**
  * Fullbright College - Student Management System
  * Configuration
+ *
+ * Sensitive / environment-specific values are read from the environment
+ * (Vercel-style deployment platforms, Docker, etc.) and fall back to the
+ * stock XAMPP defaults for local development. Never commit real credentials.
  */
 
-define('DB_HOST', 'localhost');
-define('DB_NAME', 'fullbright_college');
-define('DB_USER', 'root');
-define('DB_PASS', '');
+if (!function_exists('env')) {
+    /**
+     * Reads an environment variable, trimming surrounding whitespace.
+     * Returns $default when the variable is unset or empty.
+     */
+    function env(string $key, ?string $default = null): ?string
+    {
+        $value = getenv($key);
+        if ($value === false) {
+            return $default;
+        }
+        $value = trim($value);
+        return $value === '' ? $default : $value;
+    }
+}
+
+if (!function_exists('env_bool')) {
+    /**
+     * Reads a boolean environment variable ("1", "true", "on", "yes" => true).
+     */
+    function env_bool(string $key, bool $default = false): bool
+    {
+        $value = env($key);
+        if ($value === null) {
+            return $default;
+        }
+        return filter_var($value, FILTER_VALIDATE_BOOLEAN);
+    }
+}
+
+/**
+ * Application environment: "local" (default) or "production".
+ * In production, on-screen credential/link fallbacks default to OFF.
+ */
+define('APP_ENV', env('APP_ENV', 'local'));
+define('IS_PRODUCTION', APP_ENV === 'production');
+
+/* ------------------------------------------------------------------
+ * Database
+ *
+ * Configuration is resolved in this order:
+ *   1. A single connection URL  (DATABASE_URL or MYSQL_URL), as provided
+ *      by Railway / Render / Fly.io / Heroku, e.g.
+ *        mysql://user:pass@host:3306/dbname
+ *   2. Individual DB_* variables (DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASS).
+ *   3. Local XAMPP defaults.
+ * ------------------------------------------------------------------ */
+$__db_url = env('DATABASE_URL')
+    ?? env('MYSQL_URL')
+    ?? env('MYSQL_PUBLIC_URL')
+    ?? '';
+
+$__db = [
+    'host' => env('DB_HOST', 'localhost'),
+    'port' => env('DB_PORT', '3306'),
+    'name' => env('DB_NAME', 'fullbright_college'),
+    'user' => env('DB_USER', 'root'),
+    'pass' => env('DB_PASS', ''),
+];
+
+if ($__db_url !== '') {
+    $__parts = parse_url($__db_url);
+    if (is_array($__parts) && !empty($__parts['host'])) {
+        $__db['host'] = $__parts['host'];
+        $__db['port'] = (string) ($__parts['port'] ?? $__db['port']);
+        $__db['user'] = isset($__parts['user']) ? urldecode($__parts['user']) : $__db['user'];
+        $__db['pass'] = isset($__parts['pass']) ? urldecode($__parts['pass']) : $__db['pass'];
+        if (!empty($__parts['path'])) {
+            $__db['name'] = ltrim($__parts['path'], '/');
+        }
+    }
+}
+
+define('DB_HOST', $__db['host']);
+define('DB_PORT', (int) $__db['port']);
+define('DB_NAME', $__db['name']);
+define('DB_USER', $__db['user']);
+define('DB_PASS', $__db['pass']);
+// Some managed MySQL providers require TLS on public endpoints.
+define('DB_SSL', env_bool('DB_SSL', false));
+define('DB_SSL_CA', env('DB_SSL_CA', ''));
+
+unset($__db_url, $__db, $__parts);
 
 define('UPLOAD_DIR', __DIR__ . '/../uploads/');
 define('UPLOAD_URL', 'uploads/');
@@ -153,16 +236,22 @@ define('DEPARTMENT', 'Engineering & Communication Technology (ECT)');
 define('SECTION_CAPACITY', 50);
 
 // Forgot Password: XAMPP has no real mail server, so PHP mail() never
-// actually delivers. When true (default), recovered login credentials are
-// also displayed on screen so the student can log in.
-// Set to false if real SMTP delivery is configured.
-define('SHOW_CREDENTIALS_ONSCREEN', true);
+// actually delivers. When true, recovered login credentials are also displayed
+// on screen so the student can log in. Defaults to ON locally and OFF in
+// production (where real SMTP delivery should be configured).
+// Override with the SHOW_CREDENTIALS_ONSCREEN environment variable.
+define('SHOW_CREDENTIALS_ONSCREEN', env_bool('SHOW_CREDENTIALS_ONSCREEN', !IS_PRODUCTION));
 
-// Enrollment email verification: XAMPP has no real mail server, so PHP mail()
-// never actually delivers. When true (default), the verification link is also
-// returned to the enrollment form and shown on screen so it can be tested.
-// Set to false once real SMTP delivery is configured.
-define('SHOW_VERIFICATION_LINK_ONSCREEN', true);
+// Enrollment email verification: same reasoning as above. When true, the
+// verification link is also returned to the enrollment form and shown on
+// screen so it can be tested without a mail server.
+// Override with the SHOW_VERIFICATION_LINK_ONSCREEN environment variable.
+define('SHOW_VERIFICATION_LINK_ONSCREEN', env_bool('SHOW_VERIFICATION_LINK_ONSCREEN', !IS_PRODUCTION));
+
+// Email delivery. When SMTP_HOST is set the app sends mail over SMTP;
+// otherwise it falls back to PHP mail(). See includes/mailer.php.
+define('MAIL_FROM', env('MAIL_FROM', 'noreply@fullbrightcollege.example'));
+define('MAIL_FROM_NAME', env('MAIL_FROM_NAME', 'Fullbright College Student Portal'));
 
 /**
  * Programs offered under the ECT department.

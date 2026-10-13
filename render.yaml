@@ -1,0 +1,36 @@
+# Fullbright College - Student Management System
+# Render Blueprint (https://render.com/docs/blueprint-spec)
+#
+# Render does NOT provide managed MySQL, so point DB_HOST/DB_USER/DB_PASS at an
+# external MySQL (Aiven, Railway, Clever Cloud, etc.) via the dashboard.
+# Deploy: New + > Blueprint > pick this repo.
+services:
+  - type: web
+    name: fullbright-college
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: SESSION_DRIVER
+        value: database
+      - key: AUTO_IMPORT_SCHEMA
+        value: "true"
+      - key: DB_SSL
+        value: "true"
+      # Set these in the Render dashboard (secrets are not stored in git):
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        value: "3306"
+      - key: DB_NAME
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASS
+        sync: false
+      # Optional: force the public URL used by Digital ID QR codes.
+      - key: FULLBRIGHT_PUBLIC_URL
+        sync: false

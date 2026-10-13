@@ -1,0 +1,29 @@
+.git
+.gitignore
+.github
+.vercel
+.vscode
+.idea
+
+# Local only
+node_modules
+vendor
+cache
+.env
+.env.*
+*.log
+
+# Not needed inside the image
+docs
+prototype
+prototype 2
+enrollment-prototype.zip
+f.html
+
+# Runtime data (mounted as volumes instead)
+uploads/*
+digital_id/*
+!uploads/index.html
+
+.DS_Store
+Thumbs.db

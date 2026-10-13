@@ -35,16 +35,24 @@ above keeps the repository understandable without breaking it.
 │   ├── script.js            # Enrollment wizard, profile, ID card export
 │   └── qrcode.js            # Offline QR-code generator
 ├── includes/
-│   ├── config.php           # Constants, DB credentials, URL helpers
+│   ├── config.php           # Constants, DB config (env vars), URL helpers
 │   ├── db.php               # PDO connection + shared helpers
 │   ├── content.php          # Shared page content/helpers
 │   ├── exam.php             # Question bank, generation, scoring, fallback
 │   ├── idcard.php           # Server-side Digital ID markup
-│   ├── mailer.php           # Email HTML + send helpers
-│   └── verification.php     # Email-verification tokens & helpers
+│   ├── mailer.php           # Email HTML + SMTP/mail() send helpers
+│   ├── verification.php     # Email-verification tokens & helpers
+│   ├── session_handler.php  # MySQL-backed session handler (production)
+│   └── session_bootstrap.php# auto_prepend bootstrap for DB sessions
+├── docker/                  # Container config (php.ini, Apache, entrypoint)
 ├── docs/                    # Documentation (this folder)
 ├── uploads/                 # Student documents (git-ignored)
 ├── digital_id/              # Generated ID PNGs (git-ignored)
+├── Dockerfile               # Production PHP 8.2 (Apache) image
+├── docker-compose.yml       # Local/self-hosted stack (app + MySQL)
+├── railway.json             # Railway deploy config
+├── render.yaml              # Render Blueprint
+├── .env.example             # Environment variable template
 ├── schema.sql               # Full schema
 ├── upgrade_*.sql            # Incremental migrations
 ├── index.php                # Landing page

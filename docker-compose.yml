@@ -1,0 +1,66 @@
+# Fullbright College - Student Management System
+# Local / self-hosted stack: Apache+PHP app + MySQL, with persistent volumes.
+#
+# Usage:
+#   cp .env.example .env      # then edit .env
+#   docker compose up --build
+#   open http://localhost:8080
+#
+# The first boot imports schema.sql automatically (AUTO_IMPORT_SCHEMA=true)
+# when the database is empty.
+
+services:
+  db:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      MYSQL_DATABASE: ${DB_NAME:-fullbright_college}
+      MYSQL_USER: ${DB_USER:-fullbright}
+      MYSQL_PASSWORD: ${DB_PASS:-fullbright}
+    command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${MYSQL_ROOT_PASSWORD:-root}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  web:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      APP_ENV: ${APP_ENV:-production}
+      DB_HOST: db
+      DB_PORT: "3306"
+      DB_NAME: ${DB_NAME:-fullbright_college}
+      DB_USER: ${DB_USER:-fullbright}
+      DB_PASS: ${DB_PASS:-fullbright}
+      SESSION_DRIVER: database
+      AUTO_IMPORT_SCHEMA: "true"
+      # Set these once a real mail server is configured:
+      SHOW_CREDENTIALS_ONSCREEN: ${SHOW_CREDENTIALS_ONSCREEN:-false}
+      SHOW_VERIFICATION_LINK_ONSCREEN: ${SHOW_VERIFICATION_LINK_ONSCREEN:-false}
+      # Optional SMTP delivery (otherwise falls back to PHP mail()):
+      # SMTP_HOST: smtp.example.com
+      # SMTP_PORT: "587"
+      # SMTP_USER: user@example.com
+      # SMTP_PASS: secret
+      # SMTP_ENCRYPTION: tls
+      # Force the public URL used in Digital ID QR codes:
+      # FULLBRIGHT_PUBLIC_URL: https://your-domain.example
+    ports:
+      - "8080:80"
+    volumes:
+      # Persist uploaded documents and generated ID cards across restarts.
+      - uploads_data:/var/www/html/uploads
+      - idcards_data:/var/www/html/digital_id
+
+volumes:
+  db_data:
+  uploads_data:
+  idcards_data:
